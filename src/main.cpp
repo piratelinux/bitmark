@@ -1214,7 +1214,7 @@ void static PruneOrphanBlocks()
 
 int64_t GetBlockValue(CBlockIndex* pindexPrev, int64_t nFees, bool scale)
 {
-    // Before the fork we'll use the old halving code. Set a low fork number
+    // Before the fork we'll use the original quartering code. Set a low fork number
     // for testnet
     int64_t forkHeight;
     int nHeight = pindexPrev->nHeight;
@@ -1255,7 +1255,7 @@ int64_t GetBlockValue(CBlockIndex* pindexPrev, int64_t nFees, bool scale)
 
     double scalingFactor = 1.0;
     if (scale) {
-        // Get average of last 15 hashrates
+        // Get average hashrate over last 15 blocks
         CBlockIndex* curr = pindexPrev;
         CBigNum hashes = 0;
         int timePast = curr->GetBlockTime();
@@ -1267,9 +1267,9 @@ int64_t GetBlockValue(CBlockIndex* pindexPrev, int64_t nFees, bool scale)
         timePast = timePast - curr->GetBlockTime();
         // Compute average of last 15 blocks hashrate
         hashes = hashes / timePast;
-        // Hardcoded 12.8 GH/s threshold for full reward. It's actually 12.8 GH/s /
-        // 100 since the result is an integer. We then convert the int to a float
-        // since these numbers will be really large.
+        // Hardcoded 35.0 GH/s threshold for full reward. It's actually 35.0 GH/s / 100
+        // since the result is an integer. We then convert the int to a float
+        // because these numbers will be really large.
         CBigNum intScalingFactor = hashes / minimumFullRewardHashrate;
         // Now determine reward scaling factor based on hashrate time weighted
         // average
@@ -1277,7 +1277,7 @@ int64_t GetBlockValue(CBlockIndex* pindexPrev, int64_t nFees, bool scale)
         // Max of 100% and minimum of 5%
         if (scalingFactor > 1.0)
             scalingFactor = 1.0;
-        if (scalingFactor < 0.05)
+        if (scalingFactor < 0.15)
             scalingFactor = 0.15;
         LogPrintf("Hashrate of last 15 %s, scaling factor %s\n", hashes.getulong(), scalingFactor);
     }
