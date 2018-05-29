@@ -51,7 +51,7 @@ public:
         bnProofOfWorkLimit = CBigNum(~uint256(0) >> 32);
 
         bnProofOfWorkLimitMA[ALGO_SCRYPT]      = CBigNum(~uint256(0) >> 40); // 10 scrypt miners: 1 GH/s
-        bnProofOfWorkLimitMA[ALGO_SHA256D]     = CBigNum(~uint256(0) >> 50); // 1 sha256d miner: 14 Th/s
+        bnProofOfWorkLimitMA[ALGO_SHA256D]     = CBigNum(~uint256(0) >> 54); // 1 sha256d miner: 14 Th/s
         bnProofOfWorkLimitMA[ALGO_YESCRYPT]    = CBigNum(~uint256(0) >> 19); // 1 CPU: 0.5 Kh/s
         bnProofOfWorkLimitMA[ALGO_ARGON2]      = CBigNum(~uint256(0) >> 18); // 1 CPU: 0,2 Kh/s
         bnProofOfWorkLimitMA[ALGO_X17]         = CBigNum(~uint256(0) >> 34); // 1 GPU miner: 10 Mh/s
