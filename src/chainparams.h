@@ -9,6 +9,7 @@
 
 #include "bignum.h"
 #include "uint256.h"
+#include "pureheader.h"
 
 #include <vector>
 
@@ -57,7 +58,10 @@ public:
     const MessageStartChars& MessageStart() const { return pchMessageStart; }
     const vector<unsigned char>& AlertKey() const { return vAlertPubKey; }
     int GetDefaultPort() const { return nDefaultPort; }
+
     const CBigNum& ProofOfWorkLimit() const { return bnProofOfWorkLimit; }
+    const CBigNum& ProofOfWorkLimitMA(ALGO algo) const { return bnProofOfWorkLimitMA[algo]; }
+
     int SubsidyHalvingInterval() const { return nSubsidyHalvingInterval; }
     int SubsidyInterimInterval() const { return nSubsidyHalvingInterval/2; }
     virtual const CBlock& GenesisBlock() const = 0;
@@ -84,6 +88,7 @@ protected:
     int nDefaultPort;
     int nRPCPort;
     CBigNum bnProofOfWorkLimit;
+    CBigNum bnProofOfWorkLimitMA[NUM_ALGOS];
     int nSubsidyHalvingInterval;
     string strDataDir;
     vector<CDNSSeedData> vSeeds;
