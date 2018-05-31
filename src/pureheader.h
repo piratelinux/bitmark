@@ -10,7 +10,7 @@
 
 const int NUM_ALGOS = 8;
 
-enum {
+enum ALGO {
   ALGO_SCRYPT = 0,
   ALGO_SHA256D = 1,
   ALGO_YESCRYPT = 2,

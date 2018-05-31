@@ -1410,113 +1410,82 @@ unsigned int static DarkGravityWave(const CBlockIndex* pindexLast, int algo) {
     const CBlockIndex *BlockReading = pindexLast;
     int64_t nActualTimespan = 0;
     int64_t LastBlockTime = 0;
-    int64_t PastBlocksMin = 25;
-    int64_t PastBlocksMax = 25;
+    int64_t PastBlocksMin = 11;
+    int64_t PastBlocksMax = 11;
     int64_t CountBlocks = 0;
     CBigNum PastDifficultyAverage;
     CBigNum PastDifficultyAveragePrev;
     int64_t time_since_last_algo = -1;
     int64_t LastBlockTimeOtherAlgos = 0;
-    unsigned int algoWeight = GetAlgoWeight(algo);
+    CBigNum defaultDifficulty = Params().ProofOfWorkLimitMA((ALGO)algo);
 
-    if (BlockLastSolved == NULL || BlockLastSolved->nHeight == 0 || BlockLastSolved->nHeight < PastBlocksMin) {
-      return (Params().ProofOfWorkLimit()*algoWeight).GetCompact();
+    if (BlockLastSolved == NULL || BlockLastSolved->nHeight == 0 || BlockLastSolved->nHeight < nForkHeight || BlockLastSolved->nHeight < PastBlocksMin) {
+        LogPrintf("Using default difficulty algo: %x, diff: %lu\n", algo, defaultDifficulty.getuint256().ToString());
+        return defaultDifficulty.GetCompact();
     }
 
     for (unsigned int i = 1; BlockReading && BlockReading->nHeight >= nForkHeight - 1; i++) {
 
-      if (PastBlocksMax > 0 && CountBlocks >= PastBlocksMax) { break; }
+        if (PastBlocksMax > 0 && CountBlocks >= PastBlocksMax) { break; }
+        if (!LastBlockTimeOtherAlgos) {
+            LastBlockTimeOtherAlgos = BlockReading->GetBlockTime();
+        }
+        int block_algo = GetAlgo(BlockReading->nVersion);
+        if (block_algo != algo) { /* Only consider blocks from same algo */
+            BlockReading = BlockReading->pprev;
+            continue;
+        }
 
-      if (!onFork(BlockReading)) { /* last block before fork */
-	if(LastBlockTime > 0){
-	  int64_t Diff = (LastBlockTime - BlockReading->GetBlockTime());
-	  nActualTimespan += Diff;
-	}
-	if (LastBlockTimeOtherAlgos > 0 && time_since_last_algo == -1) {
-	  time_since_last_algo = LastBlockTimeOtherAlgos - BlockReading->GetBlockTime();
-	}
-	CountBlocks++;
-	break;
-      }
+        CountBlocks++;
 
-      if (!LastBlockTimeOtherAlgos) {
-	LastBlockTimeOtherAlgos = BlockReading->GetBlockTime();
-      }
-      int block_algo = GetAlgo(BlockReading->nVersion);
-      if (block_algo != algo) { /* Only consider blocks from same algo */
-	BlockReading = BlockReading->pprev;
-	continue;
-      }
-	
-      CountBlocks++;
+        if(CountBlocks <= PastBlocksMin) {
+            if (CountBlocks == 1) {
+                PastDifficultyAverage.SetCompact(BlockReading->nBits);
+                if (LastBlockTimeOtherAlgos > 0) time_since_last_algo = LastBlockTimeOtherAlgos - BlockReading->GetBlockTime();
+            }
+            else {
+                PastDifficultyAverage = ((PastDifficultyAveragePrev * (CountBlocks - 1)) + (CBigNum().SetCompact(BlockReading->nBits))) / CountBlocks;
+            }
+            PastDifficultyAveragePrev = PastDifficultyAverage;
+        }
 
-      if(CountBlocks <= PastBlocksMin) {
-	if (CountBlocks == 1) {
-	  PastDifficultyAverage.SetCompact(BlockReading->nBits);
-	  if (LastBlockTimeOtherAlgos > 0) time_since_last_algo = LastBlockTimeOtherAlgos - BlockReading->GetBlockTime();
-	}
-	else { PastDifficultyAverage = ((PastDifficultyAveragePrev * (CountBlocks-1)) + (CBigNum().SetCompact(BlockReading->nBits))) / CountBlocks; }
-	PastDifficultyAveragePrev = PastDifficultyAverage;
-      }
- 
-      if(LastBlockTime > 0){
-	int64_t Diff = (LastBlockTime - BlockReading->GetBlockTime());
-	nActualTimespan += Diff;
-      }
-      LastBlockTime = BlockReading->GetBlockTime();
+        if(LastBlockTime > 0){
+            int64_t Diff = (LastBlockTime - BlockReading->GetBlockTime());
+            nActualTimespan += Diff;
+        }
+        LastBlockTime = BlockReading->GetBlockTime();
 
-      if (BlockReading->pprev == NULL) { assert(BlockReading); break; }
-      BlockReading = BlockReading->pprev;
+        if (BlockReading->pprev == NULL) { assert(BlockReading); break; }
+        BlockReading = BlockReading->pprev;
     }
-    
+
+    // if we don't have at least 2 block we can't calculate difficulty, return default algo limit
+    if (CountBlocks < 2) {
+        LogPrintf("Not enough blocks to calculate difficulty. Using default difficulty for algo: %x, diff: %lu\n", algo, defaultDifficulty.getuint256().ToString());
+        return defaultDifficulty.GetCompact();
+    }
+
     CBigNum bnNew(PastDifficultyAverage);
     int64_t _nTargetTimespan = (CountBlocks-1) * DGWtimespan; //16 min target
 
     int64_t smultiplier = 1;
-    bool smultiply = false;
     if (time_since_last_algo > 9600) { //160 min for special retarget
-      smultiplier = time_since_last_algo/9600;
-      LogPrintf("special retarget for algo %d with time_since_last_algo = %d (height %d), smultiplier %d\n",algo,time_since_last_algo,pindexLast->nHeight, smultiplier);
-      nActualTimespan = 10*smultiplier*_nTargetTimespan;
-      smultiply = true;
+        smultiplier = time_since_last_algo/9600;
+        LogPrintf("special retarget for algo %d with time_since_last_algo = %d (height %d), smultiplier %d\n",algo,time_since_last_algo,pindexLast->nHeight, smultiplier);
     }
-    
+
     if (nActualTimespan < _nTargetTimespan/3)
-      nActualTimespan = _nTargetTimespan/3;
+        nActualTimespan = _nTargetTimespan/3;
     if (nActualTimespan > _nTargetTimespan*3)
-      nActualTimespan = smultiplier*_nTargetTimespan*3;
-    
-    if (CountBlocks >= PastBlocksMin ) {          
-	bnNew *= nActualTimespan;
-	bnNew /= _nTargetTimespan;
+        nActualTimespan = smultiplier*_nTargetTimespan*3;
+
+    bnNew *= nActualTimespan;
+    bnNew /= _nTargetTimespan;
+
+    if (bnNew > defaultDifficulty){
+        bnNew = defaultDifficulty;
     }
-    else if (CountBlocks==1) {
-      LogPrintf("CountBlocks = %d\n",CountBlocks);
-      LogPrintf("setting nBits to keep continuity of scrypt chain\n");
-      LogPrintf("scaling wrt block at height %u algo %d\n",BlockReading->nHeight,algo);
-      unsigned int weight = GetAlgoWeight(algo);
-      unsigned int weight_scrypt = GetAlgoWeight(0);
-      //if (BlockReading->nHeight == 446573) { // condition for testing fork
-      if (algo == ALGO_SCRYPT || algo == ALGO_SHA256D) {
-	LogPrintf("set to blocktreading nBits\n");
-	bnNew.SetCompact(BlockReading->nBits);
-      }
-      else {
-	LogPrintf("set to 1d00ffff\n");
-	bnNew.SetCompact(0x1d00ffff); // same as difficulty of genesis block
-      }
-      bnNew *= weight;
-      bnNew /= (8*weight_scrypt);
-      if (smultiply) bnNew *= smultiplier*3;
-    }
-    else {
-      if (smultiply) bnNew *= smultiplier*3;
-    }
-    
-    if (bnNew > Params().ProofOfWorkLimit()*algoWeight){
-      bnNew = Params().ProofOfWorkLimit()*algoWeight;
-    }
-    
+
     /// debug print
     LogPrintf("DarkGravityWave RETARGET algo %d\n",algo);
     LogPrintf("_nTargetTimespan = %d    nActualTimespan = %d\n", _nTargetTimespan, nActualTimespan);
@@ -2815,7 +2784,7 @@ bool AcceptBlock(CBlock& block, CValidationState& state, CDiskBlockPos* dbp)
         if (mi == mapBlockIndex.end())
             return state.DoS(10, error("AcceptBlock() : prev block not found"), 0, "bad-prevblk");
         pindexPrev = (*mi).second;
-        nHeight = pindexPrev->nHeight+1;	
+        nHeight = pindexPrev->nHeight+1;
 
         // Check proof of work
 	int block_algo = GetAlgo(block.nVersion);
@@ -4564,7 +4533,7 @@ bool SendMessages(CNode* pto, bool fSendTrickle)
         // Don't send anything until we get their version message
         if (pto->nVersion == 0)
             return true;
-	
+
         //
         // Message: ping
         //
