@@ -164,7 +164,7 @@ bool ActivateBestChain(CValidationState &state);
 bool onFork(const CBlockIndex* pindex);
 int64_t GetBlockValue(CBlockIndex* pindexPrev, int64_t nFees, bool noScale = false);
 unsigned int GetNextWorkRequired(const CBlockIndex* pindexLast);
-unsigned int GetNextWorkRequired(const CBlockIndex* pindexLast, int algo);
+unsigned int GetNextWorkRequired(const CBlockIndex* pindexLast, int algo, bool mm);
 
 void UpdateTime(CBlockHeader& block, const CBlockIndex* pindexPrev);
 
@@ -684,7 +684,7 @@ int64_t get_mpow_ms_correction (CBlockIndex * p);
 bool update_ssf (int nVersion);
 
 /* Calculate the subsidy scaling factor for the CBlockIndex pointer */
-unsigned int get_ssf (CBlockIndex * pindex);
+CBigNum get_ssf (CBlockIndex * pindex);
 
 /* Get the number of blocks since the last update of the subsidy scaling factor */
 int get_ssf_height (const CBlockIndex * pindex);

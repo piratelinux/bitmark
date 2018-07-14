@@ -820,7 +820,7 @@ public:
     int64_t nMoneySupply;
 
     // the scaling factor for the block
-    unsigned int subsidyScalingFactor;
+    CBigNum subsidyScalingFactor;
     
     // Which # file this block is stored in (blk?????.dat)
     int nFile;
@@ -864,7 +864,7 @@ public:
 	pauxpow.reset();
         nHeight = 0;
         nMoneySupply = 0;
-	subsidyScalingFactor = 0;
+	subsidyScalingFactor = CBigNum(0);
         nFile = 0;
         nDataPos = 0;
         nUndoPos = 0;
@@ -921,6 +921,11 @@ public:
 
     bool onFork() const {
       if (this->nHeight >= nForkHeight && IsSuperMajority(4,this->pprev,75,100)) return true;
+      return false;
+    }
+
+    bool onFork2() const {
+      if (this->nHeight >= nForkHeight && IsSuperMajority(5,this->pprev,75,100)) return true;
       return false;
     }
 
