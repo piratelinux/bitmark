@@ -1236,7 +1236,8 @@ int64_t GetBlockValue(CBlockIndex* pindex, int64_t nFees, bool noScale)
       emitted = NUM_ALGOS * get_mpow_ms_correction(pindex);
     }
 
-    bool auxpow = IsAuxpow(pindex->nVersion) && GetChainId(pindex->nVersion)!=0;
+    bool strictmm = false;
+    strictmm = IsAuxpow(pindex->nVersion) && GetChainId(pindex->nVersion)!=0 && pindex->onFork2();
 
     CBigNum scalingFactor = CBigNum(0);
     if (onFork(pindex) && !noScale) {
@@ -1261,7 +1262,7 @@ int64_t GetBlockValue(CBlockIndex* pindex, int64_t nFees, bool noScale)
     //LogPrintf("for height %d use scaling factor %f\n",nHeight,scalingFactor);
     if (RegTest()) {
       baseSubsidy = 1500000000;
-      if (auxpow) baseSubsidy /= 4;
+      if (strictmm) baseSubsidy /= 4;
       //LogPrintf("getblockvalue with scalingFactor %u\n",scalingFactor);
       if (!scalingFactor) return nFees + baseSubsidy;
       if (pindex->onFork2()) {
@@ -1378,11 +1379,11 @@ int64_t GetBlockValue(CBlockIndex* pindex, int64_t nFees, bool noScale)
     else if (emitted < 2757984964566000) { // Q 18 H 17 height 13790000
       baseSubsidy = 15258;
     }
-    if (auxpow) baseSubsidy /= 4;
+    if (strictmm) baseSubsidy /= 4;
     // total of 2757989473108000 coins emitted
     if (!scalingFactor) return nFees + baseSubsidy;
     //LogPrintf("baseSubsidy=%lld scalingFactor=%u nFees=%lld\n",baseSubsidy,scalingFactor.getuint(),nFees);
-    if (auxpow && pindex->onFork2()) {
+    if (strictmm) {
       return nFees + baseSubsidy - ((CBigNum(baseSubsidy)*CBigNum(100000000))/scalingFactor).getuint() * 3 / 4;
     }
     else {
