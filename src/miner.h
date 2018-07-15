@@ -34,6 +34,7 @@ extern double dHashesPerSec;
 extern int64_t nHPSTimerStart;
 
 extern int miningAlgo;
+extern bool auxpow;
 extern bool confAlgoIsSet;
 
 #endif // BITMARK_MINER_H

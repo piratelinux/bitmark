@@ -58,6 +58,7 @@ int miningAlgo = ALGO_SCRYPT;
 int miningAlgoGBT = miningAlgo;
 int miningAlgoGAB = miningAlgo;
 bool confAlgoIsSet = false;
+bool auxpow = false;
 
 // Return average network hashes per second based on the last 'lookup' blocks,
 // or from the last difficulty change if 'lookup' is nonpositive.
@@ -338,17 +339,25 @@ Value getmininginfo(const Array& params, bool fHelp)
     //obj.push_back(Pair("hashrate_4max_reward", (uint64_t)35000000000));
 //  difficulty is weighted in Bitmark to more meaningfully compare relative values of competing chains
 //                                       boolean for weighted / unweighted -------v
-    obj.push_back(Pair("difficulty",      (double)GetDifficulty(NULL,miningAlgo,true,true)));
+    obj.push_back(Pair("difficulty",      (double)GetDifficulty(NULL,miningAlgo,true,true,auxpow)));
 //  sdifficulty: the "simple", unweighted difficulty
-    obj.push_back(Pair("sdifficulty",       (double)GetDifficulty(NULL,miningAlgo,false,true)));
-    obj.push_back(Pair("difficulty SCRYPT", (double)GetDifficulty(NULL,ALGO_SCRYPT,true,true)));
-    obj.push_back(Pair("difficulty SHA256D",    (double)GetDifficulty(NULL,ALGO_SHA256D,true,true)));
-    obj.push_back(Pair("difficulty YESCRYPT",    (double)GetDifficulty(NULL,ALGO_YESCRYPT,true,true)));
-    obj.push_back(Pair("difficulty ARGON2",    (double)GetDifficulty(NULL,ALGO_ARGON2,true,true)));
-    obj.push_back(Pair("difficulty X17",    (double)GetDifficulty(NULL,ALGO_X17,true,true)));
-    obj.push_back(Pair("difficulty LYRA2REv2",    (double)GetDifficulty(NULL,ALGO_LYRA2REv2,true,true)));
-    obj.push_back(Pair("difficulty EQUIHASH",    (double)GetDifficulty(NULL,ALGO_EQUIHASH,true,true)));
-    obj.push_back(Pair("difficulty CRYPTONIGHT",    (double)GetDifficulty(NULL,ALGO_CRYPTONIGHT,true,true)));
+    obj.push_back(Pair("sdifficulty",       (double)GetDifficulty(NULL,miningAlgo,false,true,auxpow)));
+    obj.push_back(Pair("difficulty SCRYPT", (double)GetDifficulty(NULL,ALGO_SCRYPT,true,true,false)));
+    obj.push_back(Pair("difficulty SHA256D",    (double)GetDifficulty(NULL,ALGO_SHA256D,true,true,false)));
+    obj.push_back(Pair("difficulty YESCRYPT",    (double)GetDifficulty(NULL,ALGO_YESCRYPT,true,true,false)));
+    obj.push_back(Pair("difficulty ARGON2",    (double)GetDifficulty(NULL,ALGO_ARGON2,true,true,false)));
+    obj.push_back(Pair("difficulty X17",    (double)GetDifficulty(NULL,ALGO_X17,true,true,false)));
+    obj.push_back(Pair("difficulty LYRA2REv2",    (double)GetDifficulty(NULL,ALGO_LYRA2REv2,true,true,false)));
+    obj.push_back(Pair("difficulty EQUIHASH",    (double)GetDifficulty(NULL,ALGO_EQUIHASH,true,true,false)));
+    obj.push_back(Pair("difficulty CRYPTONIGHT",    (double)GetDifficulty(NULL,ALGO_CRYPTONIGHT,true,true,false)));
+    obj.push_back(Pair("difficulty SCRYPT auxpow", (double)GetDifficulty(NULL,ALGO_SCRYPT,true,true,true)));
+    obj.push_back(Pair("difficulty SHA256D auxpow",    (double)GetDifficulty(NULL,ALGO_SHA256D,true,true,true)));
+    obj.push_back(Pair("difficulty YESCRYPT auxpow",    (double)GetDifficulty(NULL,ALGO_YESCRYPT,true,true,true)));
+    obj.push_back(Pair("difficulty ARGON2 auxpow",    (double)GetDifficulty(NULL,ALGO_ARGON2,true,true,true)));
+    obj.push_back(Pair("difficulty X17 auxpow",    (double)GetDifficulty(NULL,ALGO_X17,true,true,true)));
+    obj.push_back(Pair("difficulty LYRA2REv2 auxpow",    (double)GetDifficulty(NULL,ALGO_LYRA2REv2,true,true,true)));
+    obj.push_back(Pair("difficulty EQUIHASH auxpow",    (double)GetDifficulty(NULL,ALGO_EQUIHASH,true,true,true)));
+    obj.push_back(Pair("difficulty CRYPTONIGHT auxpow",    (double)GetDifficulty(NULL,ALGO_CRYPTONIGHT,true,true,true)));
     obj.push_back(Pair("errors",           GetWarnings("statusbar")));
     obj.push_back(Pair("genproclimit",     (int)GetArg("-genproclimit", -1)));
     obj.push_back(Pair("networkhashps",    getnetworkhashps(params, false)));

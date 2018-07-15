@@ -120,6 +120,7 @@ CBlockTemplate* CreateNewBlock(const CScript& scriptPubKeyIn)
       miningAlgo = GetArg("-miningalgo", miningAlgo);
       confAlgoIsSet = true;
     }
+    auxpow = GetArg("-auxpow",auxpow);
     // To simulate v3 blocks occuring after nForkHeight
     if (TestNet() && pindexPrev->nHeight < 300 && miningAlgo==0) pblock->nVersion = 3;
     //LogPrintf("pindexPrev nHeight = %d while nForkHeight = %d\n",pindexPrev->nHeight,nForkHeight);
@@ -128,7 +129,10 @@ CBlockTemplate* CreateNewBlock(const CScript& scriptPubKeyIn)
       //pblock->nVersion = 3;
       //LogPrintf("pblock nVersion is %d\n",pblock->nVersion);
       pblock->SetAlgo(miningAlgo);
-      //pblock->SetChainId(Params().GetAuxpowChainId());
+      if (auxpow) {
+	pblock->SetAuxpow(true);
+	pblock->SetChainId(Params().GetAuxpowChainId());
+      }
       //LogPrintf("after setting algo to %d, it is %d\n",miningAlgo,pblock->nVersion);
     }
 
@@ -377,7 +381,7 @@ CBlockTemplate* CreateNewBlock(const CScript& scriptPubKeyIn)
 	//printf("create new block with hash prev = %s (height %d)\n",pblock->hashPrevBlock.GetHex().c_str(),pindexPrev->nHeight);
 
 	UpdateTime(*pblock, pindexPrev);
-	pblock->nBits          = GetNextWorkRequired(pindexPrev, miningAlgo, false);
+	pblock->nBits          = GetNextWorkRequired(pindexPrev, miningAlgo, auxpow);
 	//LogPrintf("create block nBits = %s\n",CBigNum().SetCompact(pblock->nBits).getuint256().GetHex().c_str());
 	pblock->nNonce         = 0;
 	if (miningAlgo==ALGO_EQUIHASH) {

@@ -1236,6 +1236,8 @@ int64_t GetBlockValue(CBlockIndex* pindex, int64_t nFees, bool noScale)
       emitted = NUM_ALGOS * get_mpow_ms_correction(pindex);
     }
 
+    bool auxpow = IsAuxpow(pindex->nVersion);
+
     CBigNum scalingFactor = CBigNum(0);
     if (onFork(pindex) && !noScale) {
       scalingFactor = pindex->subsidyScalingFactor;
@@ -1259,6 +1261,7 @@ int64_t GetBlockValue(CBlockIndex* pindex, int64_t nFees, bool noScale)
     //LogPrintf("for height %d use scaling factor %f\n",nHeight,scalingFactor);
     if (RegTest()) {
       baseSubsidy = 1500000000;
+      if (auxpow) baseSubsidy /= 4;
       //LogPrintf("getblockvalue with scalingFactor %u\n",scalingFactor);
       if (!scalingFactor) return nFees + baseSubsidy;
       if (pindex->onFork2()) {
@@ -1375,10 +1378,11 @@ int64_t GetBlockValue(CBlockIndex* pindex, int64_t nFees, bool noScale)
     else if (emitted < 2757984964566000) { // Q 18 H 17 height 13790000
       baseSubsidy = 15258;
     }
+    if (auxpow) baseSubsidy /= 4;
     // total of 2757989473108000 coins emitted
     if (!scalingFactor) return nFees + baseSubsidy;
     //LogPrintf("baseSubsidy=%lld scalingFactor=%u nFees=%lld\n",baseSubsidy,scalingFactor.getuint(),nFees);
-    if (pindex->onFork2()) {
+    if (auxpow && pindex->onFork2()) {
       return nFees + baseSubsidy - ((CBigNum(baseSubsidy)*CBigNum(100000000))/scalingFactor).getuint() * 3 / 4;
     }
     else {
@@ -1417,9 +1421,9 @@ unsigned int ComputeMinWork(unsigned int nBase, int64_t nTime)
     return bnResult.GetCompact();
 }
 
+// DarkGravity v3, written by Evan Duffield - evan@dashpay.io, heavily modified
 unsigned int static DarkGravityWave(const CBlockIndex* pindexLast, int algo, bool mm) {
 
-    /* current difficulty formula, DASH - DarkGravity v3, written by Evan Duffield - evan@dashpay.io */
     const CBlockIndex *BlockLastSolved = pindexLast;
     const CBlockIndex *BlockReading = pindexLast;
     int64_t nActualTimespan = 0;
@@ -1468,7 +1472,8 @@ unsigned int static DarkGravityWave(const CBlockIndex* pindexLast, int algo, boo
       }
       
       int block_algo = GetAlgo(BlockReading->nVersion);
-      if (block_algo != algo) { // Only consider blocks from same algo
+      int block_mm = IsAuxpow(BlockReading->nVersion);
+      if (block_algo != algo) { // Only consider blocks from same algo and auxpow class
 	BlockReading = BlockReading->pprev;
 	if (CountBlocks) lastInRowDone = true;
 	if (nInRow<9) {
@@ -4896,6 +4901,10 @@ int GetAlgo (int nVersion) {
       return ALGO_YESCRYPT;
     }
   return ALGO_SCRYPT;
+}
+
+bool IsAuxpow (int nVersion) {
+  return nVersion & BLOCK_VERSION_AUXPOW;
 }
 
 const char * GetAlgoName (int algo) {

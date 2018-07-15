@@ -601,11 +601,11 @@ bool CheckAuxPowProofOfWork(const CBlockHeader& block, const CChainParams& param
   }
 
   if (!block.auxpow) {
-    if (block.IsAuxpow()) {
+    /*if (block.IsAuxpow()) {
       LogPrintf("auxpow err 2\n");
       return error("%s : no auxpow on block with auxpow version",
 		   __func__);
-    }
+		   }*/
 
     if (!CheckProofOfWork(block.GetPoWHash(algo), block.nBits,block.GetAlgo())) {
       LogPrintf("auxpow err 3\n");

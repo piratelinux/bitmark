@@ -671,6 +671,9 @@ protected:
 /* Get Proof of Work Algo for the block from the block's nVersion */
 int GetAlgo (int nVersion);
 
+/* Get Auxpow status for the block from the block's nVersion */
+bool IsAuxpow (int nVersion);
+
 /* Get name of algo from its number */
 const char * GetAlgoName (int algo);
 
