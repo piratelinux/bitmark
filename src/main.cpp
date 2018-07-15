@@ -1236,7 +1236,7 @@ int64_t GetBlockValue(CBlockIndex* pindex, int64_t nFees, bool noScale)
       emitted = NUM_ALGOS * get_mpow_ms_correction(pindex);
     }
 
-    bool auxpow = IsAuxpow(pindex->nVersion);
+    bool auxpow = IsAuxpow(pindex->nVersion) && GetChainId(pindex->nVersion)!=0;
 
     CBigNum scalingFactor = CBigNum(0);
     if (onFork(pindex) && !noScale) {
@@ -2635,7 +2635,7 @@ bool AddToBlockIndex(CBlock& block, CValidationState& state, const CDiskBlockPos
     }
     pindexNew->nTx = block.vtx.size();
     pindexNew->nChainWork = (pindexNew->pprev ? pindexNew->pprev->nChainWork : 0) + pindexNew->GetBlockWork().getuint256();
-    if (block.IsAuxpow()) {
+    if (block.IsAuxpow() && block.GetChainId()) {
       pindexNew->pauxpow = block.auxpow;
       assert(NULL != pindexNew->pauxpow.get());
     }
@@ -2793,7 +2793,7 @@ bool CheckBlock(const CBlock& block, CValidationState& state, bool fCheckPOW, bo
       }*/
     
     // Check proof of work matches claimed amount
-    if(fCheckPOW && block.IsAuxpow()) {
+    if(fCheckPOW && block.IsAuxpow() && block.GetChainId()) {
       if (!CheckAuxPowProofOfWork(block, Params())) {
 	return state.DoS(50, error("CheckBlock() : auxpow proof of work failed"),
 			 REJECT_INVALID, "high-hash");
@@ -4905,6 +4905,10 @@ int GetAlgo (int nVersion) {
 
 bool IsAuxpow (int nVersion) {
   return nVersion & BLOCK_VERSION_AUXPOW;
+}
+
+int32_t GetChainId (int nVersion) {
+  return nVersion >> 16;
 }
 
 const char * GetAlgoName (int algo) {

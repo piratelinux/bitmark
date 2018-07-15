@@ -344,7 +344,9 @@ Object blockToJSON(const CBlock& block, const CBlockIndex* blockindex)
     int algo = GetAlgo(block.nVersion);
     result.push_back(Pair("algo",GetAlgoName(algo)));
     bool auxpow = block.IsAuxpow();
+    int chainId = block.GetChainId();
     result.push_back(Pair("auxpow",auxpow));
+    result.push_back(Pair("chain_id",chainId));
     if (auxpow) {
       result.push_back(Pair("parentblockhash",block.auxpow->parentBlock.GetHash().GetHex()));
       result.push_back(Pair("parentblockpowhash",block.auxpow->parentBlock.GetPoWHash().GetHex()));

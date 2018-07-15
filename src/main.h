@@ -674,6 +674,8 @@ int GetAlgo (int nVersion);
 /* Get Auxpow status for the block from the block's nVersion */
 bool IsAuxpow (int nVersion);
 
+int32_t GetChainId (int nVersion);
+
 /* Get name of algo from its number */
 const char * GetAlgoName (int algo);
 

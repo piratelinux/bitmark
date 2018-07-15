@@ -400,8 +400,6 @@ public:
     /** Parent block header (on which the real PoW is done).  */
     CPureBlockHeader parentBlock;
 
-    int algo = 0; 
-
 public:
     /* Prevent accidental conversion.  */
     inline explicit CAuxPow(const CTransaction& txIn)
@@ -505,7 +503,7 @@ public:
         s.nVersion = nVersion;                  \
 	READWRITE(*(CPureBlockHeader*)this);
 	nVersion = this->nVersion;
-	if (this->IsAuxpow()) {
+	if (this->IsAuxpow() && this->GetChainId()) {
 	  assert(auxpow);
 	  (*auxpow).parentBlock.isParent = true;
 	  int algo = CPureBlockHeader::GetAlgo();
@@ -530,7 +528,7 @@ public:
         assert(fGetSize||fWrite||fRead); /* suppress warning */ \
 	READWRITE(*(CPureBlockHeader*)this);
 	nVersion = this->nVersion;
-	if (this->IsAuxpow()) {
+	if (this->IsAuxpow() && this->GetChainId()) {
 	  assert(auxpow);
 	  (*auxpow).parentBlock.isParent = true;
 	  int algo = CPureBlockHeader::GetAlgo();
@@ -554,7 +552,7 @@ public:
         assert(fGetSize||fWrite||fRead); /* suppress warning */ \
 	READWRITE(*(CPureBlockHeader*)this);
 	nVersion = this->nVersion;
-	if (this->IsAuxpow()) {
+	if (this->IsAuxpow() && this->GetChainId()) {
 	  auxpow.reset(new CAuxPow());
 	  assert(auxpow);
 	  (*auxpow).parentBlock.isParent = true;
@@ -932,7 +930,7 @@ public:
     CBlockHeader GetBlockHeader() const
     {
         CBlockHeader block;
-	if (IsAuxpow() && onFork())
+	if (IsAuxpow() && GetChainId() && onFork())
 	  {
 	    const CDiskBlockPos pos = GetBlockPos();
 	    CAutoFile filein(OpenBlockFile(pos, true), SER_DISK, CLIENT_VERSION);
@@ -1035,6 +1033,10 @@ public:
       return nVersion & BLOCK_VERSION_AUXPOW;
     }
 
+    inline bool GetChainId() const {
+      return nVersion >> 16;
+    }
+
     int GetAlgo () const {
       switch (nVersion & BLOCK_VERSION_ALGO)
 	{
@@ -1116,7 +1118,7 @@ public:
 	else {
 	  READWRITE(nNonce);
 	}
-	if (this->IsAuxpow() && onFork) {
+	if (this->IsAuxpow() && this->GetChainId() && onFork) {
 	  assert(pauxpow);
 	  (*pauxpow).parentBlock.isParent = true;
 	  int algo = CBlockIndex::GetAlgo();
@@ -1170,7 +1172,7 @@ public:
 	else {
 	  READWRITE(nNonce);
 	}
-	if (this->IsAuxpow() && onFork) {
+	if (this->IsAuxpow() && this->GetChainId() && onFork) {
 	  assert(pauxpow);
 	  (*pauxpow).parentBlock.isParent = true;
 	  int algo = CBlockIndex::GetAlgo();
@@ -1223,7 +1225,7 @@ public:
 	else {
 	  READWRITE(nNonce);
 	}
-	if (this->IsAuxpow() && onFork) {
+	if (this->IsAuxpow() && this->GetChainId() && onFork) {
 	  pauxpow.reset(new CAuxPow());
 	  assert(pauxpow);
 	  (*pauxpow).parentBlock.isParent = true;
