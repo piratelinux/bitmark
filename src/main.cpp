@@ -1429,6 +1429,8 @@ unsigned int ComputeMinWork(unsigned int nBase, int64_t nTime)
 // DarkGravity v3, written by Evan Duffield - evan@dashpay.io, heavily modified
 unsigned int static DarkGravityWave(const CBlockIndex* pindexLast, int algo, bool mm) {
 
+  //if (fDebug) LogPrintf("run DarkGravityWave with algo %d mm %d\n",algo,mm);
+
     const CBlockIndex *BlockLastSolved = pindexLast;
     const CBlockIndex *BlockReading = pindexLast;
     int64_t nActualTimespan = 0;
@@ -1453,10 +1455,13 @@ unsigned int static DarkGravityWave(const CBlockIndex* pindexLast, int algo, boo
     
     int nr = 9; // target n in row
     int resurrTime = 9600; // time for resurrector to activate
-    bool onFork2last = CBlockIndex::IsSuperMajority(5,pindexLast,75,100);
+    bool onFork2last = CBlockIndex::IsSuperMajority(5,pindexLast,750,1000);
     if (onFork2last) {
       nr = 6;
       resurrTime = 19200;
+    }
+    else {
+      CountBlocks2Done = true;
     }
 
     if (BlockLastSolved == NULL || BlockLastSolved->nHeight == 0 || BlockLastSolved->nHeight < PastBlocksMin) {
@@ -1487,7 +1492,7 @@ unsigned int static DarkGravityWave(const CBlockIndex* pindexLast, int algo, boo
       
       // In general shouldn't assume fork 2 comes after fork 1, but we use checkpoints so we do for now
       bool onFork2now = onFork2(BlockReading);
-      if (onForkNow && !onFork2now && block_algo==algo) {
+      if (onFork2last && !onFork2now && block_algo==algo) {
 	CountBlocks2++;
 	CountBlocks2Done = true;
       }
@@ -1563,6 +1568,8 @@ unsigned int static DarkGravityWave(const CBlockIndex* pindexLast, int algo, boo
     if (fDebug) LogPrintf("nInRow = %d lastInRow=%d\n",nInRow,lastInRow);
     bool justHadSurge = nInRow>=nr || nInRow && pastInRow && (nInRow+pastInRow)>=nr && pastInRow%nr!=0;
 
+    //if (fDebug && justHadSurge) LogPrintf("justHadSurge\n");
+
     if (justHadSurge || time_since_last_algo>resurrTime) {
       if (fDebug) LogPrintf("bnNew = LastDifficultyAlgo\n");
       bnNew = LastDifficultyAlgo;
@@ -1592,8 +1599,8 @@ unsigned int static DarkGravityWave(const CBlockIndex* pindexLast, int algo, boo
       nActualTimespan = _nTargetTimespan/3;
     if (nActualTimespan > _nTargetTimespan*3)
       nActualTimespan = smultiplier*_nTargetTimespan*3;
-    
-    if (CountBlocks >= PastBlocksMin && CountBlocks2 >= PastBlocksMin) {
+
+    if (CountBlocks >= PastBlocksMin && (!CountBlocks2 || CountBlocks2 >= PastBlocksMin)) {
       if (lastInRow>=nr && !lastInRowMod) {
 	bnNew /= 3;
       }
@@ -1633,12 +1640,12 @@ unsigned int static DarkGravityWave(const CBlockIndex* pindexLast, int algo, boo
       if (smultiply) bnNew *= smultiplier*3;
     }
     else {
-      bnNew = LastDifficultyAlgo;
       if (smultiply) bnNew *= smultiplier*3;
       if (lastInRow>=nr && !lastInRowMod) bnNew /= 3;
     }
     
     if (bnNew > Params().ProofOfWorkLimit()*algoWeight){
+      LogPrintf("set to powlimit\n");
       bnNew = Params().ProofOfWorkLimit()*algoWeight;
     }
     

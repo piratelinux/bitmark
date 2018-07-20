@@ -631,10 +631,10 @@ bool CheckAuxPowProofOfWork(const CBlockHeader& block, const CChainParams& param
       bnTarget.SetCompact(block.nBits);
       uint256 target = bnTarget.getuint256();
 
-      LogPrintf("DEBUG: proof-of-work submitted  \n  parent-PoWhash: %s\n  target: %s  bits: %08x \n",
+      /*LogPrintf("DEBUG: proof-of-work submitted  \n  parent-PoWhash: %s\n  target: %s  bits: %08x \n",
 		block.auxpow->getParentBlockPoWHash(algo).ToString().c_str(),
 		target.GetHex().c_str(),
-		bnTarget.GetCompact());
+		bnTarget.GetCompact());*/
     }
 
   if (block.GetAlgo() == ALGO_EQUIHASH && !CheckEquihashSolution(&(block.auxpow->parentBlock), Params())) {
