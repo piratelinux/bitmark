@@ -33,11 +33,13 @@ double GetDifficulty(const CBlockIndex* blockindex, int algo, bool weighted, boo
       algo = GetAlgo(blockindex->nVersion);
     }
     bool blockOnFork = false;
+    bool blockOnFork2 = false;
     if (onFork(blockindex)) blockOnFork = true;
+    if (onFork2(blockindex)) blockOnFork2 = true;
     if (blockOnFork) {
       int algo_tip = GetAlgo(blockindex->nVersion);
       if (algo_tip != algo) {
-	blockindex = get_pprev_algo(blockindex,algo);
+	blockindex = get_pprev_algo(blockindex,algo,blockOnFork2);
       }
     }
     unsigned int nBits = 0;
@@ -82,24 +84,25 @@ double GetPeakHashrate (const CBlockIndex* blockindex, int algo) {
     }
   
   int algo_tip = GetAlgo(blockindex->nVersion);
+  bool onFork2now = onFork2(blockindex);
   if (algo_tip != algo) {
-    blockindex = get_pprev_algo(blockindex,algo);
+    blockindex = get_pprev_algo(blockindex,algo,onFork2now);
   }
   if (!blockindex) return 0.;
+  int nSSFb = nSSF;
+  if (onFork2now) nSSFb = nSSF/2;
   do {
     if (update_ssf(blockindex->nVersion)) {
       double hashes_peak = 0.;
-      const CBlockIndex * pprev_algo = get_pprev_algo(blockindex,-1);
+      const CBlockIndex * pprev_algo = get_pprev_algo(blockindex,-1,onFork2now);
       for (int i=0; i<365; i++) {
 	if (!pprev_algo) break;
 	int time_f = pprev_algo->GetMedianTimePast();
 	CBigNum hashes_bn = pprev_algo->GetBlockWork();
 	int time_i = 0;
-	
-	for (int j=0; j<nSSF-1; j++) {
-	 
-	  pprev_algo = get_pprev_algo(pprev_algo,-1);
 
+	for (int j=0; j<nSSFb-1; j++) {	 
+	  pprev_algo = get_pprev_algo(pprev_algo,-1,onFork2now);
 	  if (pprev_algo) {
 	    time_i = pprev_algo->GetMedianTimePast();
 	  }
@@ -110,7 +113,7 @@ double GetPeakHashrate (const CBlockIndex* blockindex, int algo) {
 	  //LogPrintf("j=%d add block work of block %lu\n",j,pprev_algo->nHeight);
 	  hashes_bn += pprev_algo->GetBlockWork();	  
 	}
-	CBlockIndex * pprev_algo_time = get_pprev_algo(pprev_algo,-1);
+	CBlockIndex * pprev_algo_time = get_pprev_algo(pprev_algo,-1,onFork2now);
 	if (pprev_algo_time) {
 	  time_i = pprev_algo_time->GetMedianTimePast();
 	}
@@ -139,7 +142,7 @@ double GetPeakHashrate (const CBlockIndex* blockindex, int algo) {
       return hashes_peak;
       break;
     }
-    blockindex = get_pprev_algo(blockindex,-1);
+    blockindex = get_pprev_algo(blockindex,-1,onFork2now);
   } while (blockindex);
   return 0.;
 }
@@ -153,22 +156,25 @@ double GetCurrentHashrate (const CBlockIndex* blockindex, int algo) { //as used 
 	blockindex = chainActive.Tip();
     }
   int algo_tip = GetAlgo(blockindex->nVersion);
+  bool onFork2now = onFork2(blockindex);
   if (algo_tip != algo) {
-    blockindex = get_pprev_algo(blockindex,algo);
+    blockindex = get_pprev_algo(blockindex,algo,onFork2now);
   }
   if (!blockindex) {
     return 0.;
   }
+  int nSSFb = nSSF;
+  if (onFork2now) nSSFb = nSSF/2;
   do {
     if (update_ssf(blockindex->nVersion)) {
-      const CBlockIndex * pcur_algo = get_pprev_algo(blockindex,-1);
+      const CBlockIndex * pcur_algo = get_pprev_algo(blockindex,-1,onFork2now);
       if (!pcur_algo) return 0.;
       int time_f = pcur_algo->GetMedianTimePast();
       CBigNum hashes_bn = pcur_algo->GetBlockWork();
       int time_i = 0;
       const CBlockIndex * pprev_algo = pcur_algo;
-      for (int j=0; j<nSSF-1; j++) {
-	pprev_algo = get_pprev_algo(pprev_algo,-1);
+      for (int j=0; j<nSSFb-1; j++) {
+	pprev_algo = get_pprev_algo(pprev_algo,-1,onFork2now);
 	if (pprev_algo) {
 	  time_i = pprev_algo->GetMedianTimePast();
 	}
@@ -177,7 +183,7 @@ double GetCurrentHashrate (const CBlockIndex* blockindex, int algo) { //as used 
 	}
 	hashes_bn += pprev_algo->GetBlockWork();
       }
-      CBlockIndex * pprev_algo_time = get_pprev_algo(pprev_algo,-1);
+      CBlockIndex * pprev_algo_time = get_pprev_algo(pprev_algo,-1,onFork2now);
       if (pprev_algo_time) {
 	time_i = pprev_algo_time->GetMedianTimePast();
       }
@@ -198,7 +204,7 @@ double GetCurrentHashrate (const CBlockIndex* blockindex, int algo) { //as used 
       //LogPrintf("return %lu / %f\n",(double)hashes_bn.getulong(),(double)time_f);
       return (((hashes_bn/time_f)/1000000)/1000).getulong();
     }
-    blockindex = get_pprev_algo(blockindex,-1);
+    blockindex = get_pprev_algo(blockindex,-1,onFork2now);
   } while (blockindex);
   return 0.;
 }  
@@ -215,17 +221,19 @@ double GetMoneySupply (const CBlockIndex* blockindex, int algo) {
     if (algo==-1) return 2.5;
     return 20.;
   }
+  bool onForkNow = onFork(blockindex);
+  bool onFork2now = onFork2(blockindex);
   if (algo>=0) {
     int algo_tip = -1;
-    if (onFork(blockindex)) {
+    if (onForkNow) {
       algo_tip = GetAlgo(blockindex->nVersion);
     }
     if (algo_tip != algo) {
-      blockindex = get_pprev_algo(blockindex,algo);
+      blockindex = get_pprev_algo(blockindex,algo,onFork2now);
     }
   }
   else {
-    if (!onFork(blockindex)) {
+    if (!onForkNow) {
       return ((double)blockindex->nMoneySupply)/100000000.;
     }
     return GetMoneySupply(blockindex,0)+GetMoneySupply(blockindex,1)+GetMoneySupply(blockindex,2)+GetMoneySupply(blockindex,3)+GetMoneySupply(blockindex,4)+GetMoneySupply(blockindex,5)+GetMoneySupply(blockindex,6)+GetMoneySupply(blockindex,7);
@@ -272,20 +280,24 @@ int GetNBlocksUpdateSSF (const CBlockIndex * blockindex, const int algo) {
       blockindex = chainActive.Tip();
   }
   int algo_tip = -1;
-  if (onFork(blockindex)) {
+  bool onForkNow = onFork(blockindex);
+  bool onFork2now = onFork2(blockindex);
+  if (onForkNow) {
     algo_tip = GetAlgo(blockindex->nVersion);
   }
   if (algo>=0 && algo_tip != algo) {
-    blockindex = get_pprev_algo(blockindex,algo);
+    blockindex = get_pprev_algo(blockindex,algo,onFork2now);
   }
   if (!blockindex) return 0.;
   if (blockindex->nHeight == 0) return 0.;
-  int n = nSSF;
+  int nSSFb = nSSF;
+  if (onFork2now) nSSFb = nSSF/2;
+  int n = nSSFb;
   do {
     if (update_ssf(blockindex->nVersion)) {
       break;
     }
-    blockindex = get_pprev_algo(blockindex,-1);
+    blockindex = get_pprev_algo(blockindex,-1,onFork2now);
     n--;
   } while (blockindex);
   return n;
@@ -341,6 +353,7 @@ Object blockToJSON(const CBlock& block, const CBlockIndex* blockindex)
     result.push_back(Pair("size", (int)::GetSerializeSize(block, SER_NETWORK, PROTOCOL_VERSION)));
     result.push_back(Pair("height", blockindex->nHeight));
     result.push_back(Pair("version", block.nVersion));
+    result.push_back(Pair("baseversion",GetBlockVersion(block.nVersion)));
     int algo = GetAlgo(block.nVersion);
     result.push_back(Pair("algo",GetAlgoName(algo)));
     bool auxpow = block.IsAuxpow();

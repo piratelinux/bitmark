@@ -1230,18 +1230,31 @@ int64_t GetBlockValue(CBlockIndex* pindex, int64_t nFees, bool noScale)
     // emitted
     uint256 emitted;
 
-    CBlockIndex * pprev_algo = get_pprev_algo(pindex,-1);
-
-    if (pprev_algo) { //make emitted 8 times bigger so that the target points are divided in 8 for each algo
-      emitted = NUM_ALGOS * pprev_algo->nMoneySupply;
+    bool onFork2now = onFork2(pindex);
+    CBlockIndex * pprev_algo = get_pprev_algo(pindex,-1,onFork2now);
+    int efactor = NUM_ALGOS;
+    bool mm = IsAuxpow(pindex->nVersion) && onFork2now;
+    if (mm) {
+      efactor = NUM_ALGOS * 4;
     }
     else {
-      //LogPrintf("emitted uses mpow correction \n");
-      emitted = NUM_ALGOS * get_mpow_ms_correction(pindex);
+      efactor = NUM_ALGOS * 4/3;
     }
 
-    bool strictmm = false;
-    strictmm = IsAuxpow(pindex->nVersion) && GetChainId(pindex->nVersion)!=0 && pindex->onFork2();
+    if (pprev_algo) { //make emitted 8 times bigger so that the target points are divided in 8 for each algo
+      emitted = efactor * pprev_algo->nMoneySupply;
+    }
+    else {
+      if (onFork2now) {
+	emitted = efactor * get_mpow_ms_correction(pindex,2);
+      }
+      else {
+	emitted = efactor * get_mpow_ms_correction(pindex,1);
+      }
+    }
+
+    //bool strictmm = false;
+    //strictmm = IsAuxpow(pindex->nVersion) && GetChainId(pindex->nVersion)!=0 && onFork2now;
 
     CBigNum scalingFactor = CBigNum(0);
     if (onFork(pindex) && !noScale) {
@@ -1254,7 +1267,7 @@ int64_t GetBlockValue(CBlockIndex* pindex, int64_t nFees, bool noScale)
 	    pindex->subsidyScalingFactor = scalingFactor;
 	    break;
 	  }
-	  pprev_algo = get_pprev_algo(pprev_algo,-1);
+	  pprev_algo = get_pprev_algo(pprev_algo,-1,onFork2now);
 	} while (pprev_algo);
       }
     }
@@ -1266,10 +1279,15 @@ int64_t GetBlockValue(CBlockIndex* pindex, int64_t nFees, bool noScale)
     //LogPrintf("for height %d use scaling factor %f\n",nHeight,scalingFactor);
     if (RegTest()) {
       baseSubsidy = 1500000000;
-      if (strictmm) baseSubsidy /= 4;
-      //LogPrintf("getblockvalue with scalingFactor %u\n",scalingFactor);
+      if (mm) {
+	baseSubsidy /= 2;
+      }
+      else {
+	baseSubsidy *= 3;
+	baseSubsidy /= 2;
+      }
       if (!scalingFactor) return nFees + baseSubsidy;
-      if (pindex->onFork2()) {
+      if (mm) {
 	return nFees + baseSubsidy - ((CBigNum(baseSubsidy)*CBigNum(100000000))/scalingFactor).getuint() * 3 / 4;
       }
       else {
@@ -1383,11 +1401,16 @@ int64_t GetBlockValue(CBlockIndex* pindex, int64_t nFees, bool noScale)
     else if (emitted < 2757984964566000) { // Q 18 H 17 height 13790000
       baseSubsidy = 15258;
     }
-    if (strictmm) baseSubsidy /= 4;
+    if (mm) { // 3/4 of the subsidy to native miners, 1/4 to merged
+      baseSubsidy /= 2;
+    }
+    else {
+      baseSubsidy *= 3;
+      baseSubsidy /= 2;
+    }
     // total of 2757989473108000 coins emitted
     if (!scalingFactor) return nFees + baseSubsidy;
-    //LogPrintf("baseSubsidy=%lld scalingFactor=%u nFees=%lld\n",baseSubsidy,scalingFactor.getuint(),nFees);
-    if (strictmm) {
+    if (mm) { // merged have a tougher CEM response
       return nFees + baseSubsidy - ((CBigNum(baseSubsidy)*CBigNum(100000000))/scalingFactor).getuint() * 3 / 4;
     }
     else {
@@ -2167,22 +2190,28 @@ bool ConnectBlock(CBlock& block, CValidationState& state, CBlockIndex* pindex, C
     // Check it again in case a previous version let a bad block in
     if (!CheckBlock(block, state, !fJustCheck, !fJustCheck))
         return false;
+
+    bool onForkNow = onFork(pindex);
+    bool onFork2now = onFork2(pindex);
     
     // Force min version after fork
-    if (onFork(pindex) && block.nVersion<CBlock::CURRENT_VERSION) {
+    if (onForkNow && block.nVersion<CBlock::CURRENT_VERSION) {
       LogPrintf("nVersion<=2 and after fork\n");
       return false;
     }
+
+    int nSSFb = nSSF;
+    if (onFork2now) nSSFb = nSSF/2;
     
     // Check SSF
-    if (onFork(pindex)) { //new multi algo blocks are identified like this
+    if (onForkNow) { //new multi algo blocks are identified like this
       CBlockIndex * pprev_algo = pindex;
       if (update_ssf(pindex->nVersion)) {
-	for (int i=0; i<nSSF; i++) {
-	  pprev_algo = get_pprev_algo(pprev_algo,-1);
+	for (int i=0; i<nSSFb; i++) {
+	  pprev_algo = get_pprev_algo(pprev_algo,-1,onFork2now);
 	  if (!pprev_algo) break;
-	  if (update_ssf(pprev_algo->nVersion)) {
-	    if (i != nSSF-1) {
+	  if (update_ssf(pprev_algo->nVersion) && !(onFork2now && !onFork2(pprev_algo))) {
+	    if (i != nSSFb-1) {
 	      LogPrintf("marked with update ssf flag, but not at right time: i=%d\n",i);
 	      return false; //make sure the SSF update block happens every nSSF blocks
 	    }
@@ -2190,11 +2219,11 @@ bool ConnectBlock(CBlock& block, CValidationState& state, CBlockIndex* pindex, C
 	}
       }
       else {
-	for (int i=0; i<nSSF; i++) {
-	  pprev_algo = get_pprev_algo(pprev_algo,-1);
+	for (int i=0; i<nSSFb; i++) {
+	  pprev_algo = get_pprev_algo(pprev_algo,-1,onFork2now);
 	  if (!pprev_algo) break;
 	  if (update_ssf(pprev_algo->nVersion)) {
-	    if (i == nSSF-1) {
+	    if (i == nSSFb-1) {
 	      LogPrintf("Should be marked with update ssf flag\n");
 	      return false; //make sure the SSF update block happens every nSSF blocks
 	    }
@@ -2250,7 +2279,7 @@ bool ConnectBlock(CBlock& block, CValidationState& state, CBlockIndex* pindex, C
 	flags |= SCRIPT_VERIFY_CHECKLOCKTIMEVERIFY;
       }
 
-    if (onFork(pindex)) {
+    if (onForkNow) {
       flags |= SCRIPT_VERIFY_DERSIG;
     }
 
@@ -2310,8 +2339,8 @@ bool ConnectBlock(CBlock& block, CValidationState& state, CBlockIndex* pindex, C
         LogPrintf("- Connect %u transactions: %.2fms (%.3fms/tx, %.3fms/txin)\n", (unsigned)block.vtx.size(), 0.001 * nTime, 0.001 * nTime / block.vtx.size(), nInputs <= 1 ? 0 : 0.001 * nTime / (nInputs-1));
 
     CBlockIndex * pprev_algo = 0;
-    if (!fJustCheck) pprev_algo = get_pprev_algo(pindex,-1);
-    if (!fJustCheck && onFork(pindex)) { // set scaling factor
+    if (!fJustCheck) pprev_algo = get_pprev_algo(pindex,-1,onFork2now);
+    if (!fJustCheck && onForkNow) { // set scaling factor
       if (update_ssf(pindex->nVersion)) {
 	pindex->subsidyScalingFactor = get_ssf(pindex);
       }
@@ -2343,12 +2372,18 @@ bool ConnectBlock(CBlock& block, CValidationState& state, CBlockIndex* pindex, C
 
     // Increment the nMoneySupply to include this blocks subsidy
     
-    if (onFork(pindex)) {
+    if (onForkNow) {
       if (pprev_algo) {
 	pindex->nMoneySupply = pprev_algo->nMoneySupply + block.vtx[0].GetValueOut() - nFees;
       }
       else {
-	int64_t ms_correction = get_mpow_ms_correction(pindex);
+	int64_t ms_correction;
+	if (onFork2now) {
+	  ms_correction = get_mpow_ms_correction(pindex,2);
+	}
+	else {
+	  ms_correction = get_mpow_ms_correction(pindex,1);
+	}
 	pindex->nMoneySupply = ms_correction+block.vtx[0].GetValueOut() - nFees;
       }
     }
@@ -4986,9 +5021,10 @@ const char * GetAlgoName (int algo) {
 }
 
 /* Get previous CBlockIndex pointer with the given algo */
-CBlockIndex * get_pprev_algo (const CBlockIndex * p, int use_algo) {
+CBlockIndex * get_pprev_algo (const CBlockIndex * p, int use_algo, bool check_mm) {
   if (!p) return 0;
   if (!onFork(p)) return 0;
+  if (check_mm && !onFork2(p)) return 0;
   int algo = -1;
   if (use_algo>=0) {
     algo = use_algo;
@@ -4996,30 +5032,41 @@ CBlockIndex * get_pprev_algo (const CBlockIndex * p, int use_algo) {
   else {
     algo = GetAlgo(p->nVersion);
   }
+  bool mm = IsAuxpow(p->nVersion);
   CBlockIndex * pprev = p->pprev;
-  while (pprev && onFork(pprev)) {
+  while (pprev && onFork(pprev) && (!check_mm || onFork2(pprev))) {
     int cur_algo = GetAlgo(pprev->nVersion);
+    int cur_mm = IsAuxpow(pprev->nVersion);
     if (cur_algo == algo) {
-      return pprev;
+      if (check_mm) {
+	if (cur_mm = mm) {
+	  return pprev;
+	}
+      }
+      else {
+	return pprev;
+      }
     }
     pprev = pprev->pprev;
   }
-  //LogPrintf("return 0 for pprev_algo (%d)\n",algo);
   return 0;
 }
 
-int64_t get_mpow_ms_correction (CBlockIndex * p) {
+int64_t get_mpow_ms_correction (CBlockIndex * p, int nFork) {
+  int algo = GetAlgo(p->nVersion);
   CBlockIndex * pprev = p->pprev;
   while (pprev) {
-    if (!onFork(pprev)) {
+    if (nFork==1 && !onFork(pprev)) {
       if (pprev->nHeight == 0) {
 	return 2000000000/NUM_ALGOS;
       }
       return pprev->nMoneySupply/NUM_ALGOS;
     }
+    else if (nFork==2 && !onFork2(pprev) && onFork(pprev) && GetAlgo(pprev->nVersion)==algo) {
+      return pprev->nMoneySupply/2;
+    }
     pprev = pprev->pprev;
   }
-  //LogPrintf("just return 0 for correction\n");
   return 0;
 }
 
@@ -5033,18 +5080,35 @@ CBigNum get_ssf (CBlockIndex * pindex) {
   CBigNum hashes_peak = CBigNum(0);
   CBigNum hashes_cur = CBigNum(0);
   int nPeriods = 365;
-  if (pindex->onFork2()) nPeriods = 90;
+  int nSSFb = nSSF;
+  bool onFork2now = pindex->onFork2();
+  if (onFork2now) {
+    nPeriods = 90;
+    nSSFb = nSSF/2;
+  }
   for (int i=0; i<nPeriods; i++) { // use at most 3 months of history
-    //LogPrintf("i=%d\n",i);
-    pprev_algo = get_pprev_algo(pprev_algo,-1);
+    if (onFork2now) {
+      pprev_algo = get_pprev_algo(pprev_algo,-1,true);
+      if (!pprev_algo && !i) { // return pre fork 2 ssf for the same algo
+	CBlockIndex * blockindex = pprev_algo;
+	int algo = blockindex->GetAlgo();
+	while (blockindex && (onFork2(blockindex)||blockindex->GetAlgo()!=algo)) {
+	  blockindex = blockindex->pprev;
+	}
+	return get_ssf(blockindex);
+      }
+    }
+    else {
+      pprev_algo = get_pprev_algo(pprev_algo,-1,false);
+    }
     if (!pprev_algo) {
       break;
     }
     CBigNum hashes = pprev_algo->GetBlockWork();
     unsigned int time_f = pprev_algo->GetMedianTimePast();
     unsigned int time_i = 0;
-    for (int j=0; j<nSSF-1; j++) {  // nSSF blocks = 24 hours, using only blocks from the same algo as the target block
-      pprev_algo = get_pprev_algo(pprev_algo,-1);
+    for (int j=0; j<nSSFb-1; j++) {  // nSSF blocks = 24 hours, using only blocks from the same algo as the target block
+      pprev_algo = get_pprev_algo(pprev_algo,-1,onFork2now);
       if (!pprev_algo) {
 	hashes = CBigNum(0);
 	break;
@@ -5052,7 +5116,8 @@ CBigNum get_ssf (CBlockIndex * pindex) {
       hashes += pprev_algo->GetBlockWork();
       time_i = pprev_algo->GetMedianTimePast();
     }
-    CBlockIndex * pprev_algo_time = get_pprev_algo(pprev_algo,-1);
+    CBlockIndex * pprev_algo_time = 0;
+    pprev_algo_time = get_pprev_algo(pprev_algo,-1,onFork2now);
     if (pprev_algo_time) {
       time_i = pprev_algo_time->GetMedianTimePast();
     }
@@ -5084,25 +5149,27 @@ CBigNum get_ssf (CBlockIndex * pindex) {
 }
 
 int get_ssf_height (const CBlockIndex * pindex) {
+  bool onFork2now = onFork2(pindex);
   const CBlockIndex * pprev_algo = pindex;
   for (int i=0; i<nSSF; i++) {
     if (update_ssf(pprev_algo->nVersion)) {
       return i;
     }
-    pprev_algo = get_pprev_algo(pprev_algo,-1);
+    pprev_algo = get_pprev_algo(pprev_algo,-1,onFork2now);
     if (!pprev_algo) return -1;
   }
   return -1;
 }
 
 unsigned long get_ssf_work (const CBlockIndex * pindex) {
+  bool onFork2now = onFork2(pindex);
   const CBlockIndex * pprev_algo = pindex;
   CBigNum hashes_bn = pprev_algo->GetBlockWork();
   for (int i=0; i<nSSF; i++) {
     if (update_ssf(pprev_algo->nVersion)) {
       return ((hashes_bn/1000000)/1000).getulong();
     }
-    pprev_algo = get_pprev_algo(pprev_algo,-1);
+    pprev_algo = get_pprev_algo(pprev_algo,-1,onFork2now);
     if (!pprev_algo) return 0;
     hashes_bn += pprev_algo->GetBlockWork();
   }
@@ -5110,10 +5177,11 @@ unsigned long get_ssf_work (const CBlockIndex * pindex) {
 }
 
 double get_ssf_time (const CBlockIndex * pindex) {
+  bool onFork2now = onFork2(pindex);
   int time_f = pindex->GetMedianTimePast();
   //LogPrintf("time_f = %d\n",time_f);
   const CBlockIndex * pcur_algo = pindex;
-  const CBlockIndex * pprev_algo = get_pprev_algo(pindex,-1);
+  const CBlockIndex * pprev_algo = get_pprev_algo(pindex,-1,onFork2now);
   int time_i = 0;
   for (int i=0; i<nSSF; i++) {
     if (pprev_algo) {
@@ -5135,7 +5203,9 @@ double get_ssf_time (const CBlockIndex * pindex) {
       }
     }
     pcur_algo = pprev_algo;
-    if (pprev_algo) pprev_algo = get_pprev_algo(pprev_algo,-1);
+    if (pprev_algo) {
+      pprev_algo = get_pprev_algo(pprev_algo,-1,onFork2now);
+    }
     if (!pcur_algo) return 0.;
   }
   return 0.;

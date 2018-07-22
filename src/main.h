@@ -681,10 +681,10 @@ int32_t GetChainId (int nVersion);
 const char * GetAlgoName (int algo);
 
 /* Get previous CBlockIndex pointer that has the same POW algo as p */
-CBlockIndex * get_pprev_algo (const CBlockIndex * p, int use_algo = 0);
+CBlockIndex * get_pprev_algo (const CBlockIndex * p, int use_algo = 0, bool check_mm = false);
 
-/* Get correction to money supply for multi POW blocks (1/5 of money supply before fork) */
-int64_t get_mpow_ms_correction (CBlockIndex * p);
+/* Get correction to money supply for multi POW blocks (1/8 of money supply before fork) */
+int64_t get_mpow_ms_correction (CBlockIndex * p, int nFork);
 
 /* Check if this block requires an update to the subsidy scaling factor, using the block's nVersion */
 bool update_ssf (int nVersion);

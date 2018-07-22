@@ -348,8 +348,9 @@ CBlockTemplate* CreateNewBlock(const CScript& scriptPubKeyIn)
 	if (pindexPrev->nHeight>=nForkHeight-1 && CBlockIndex::IsSuperMajority(4,pindexPrev,75,100)) {
 	  //LogPrintf("miner on fork\n");
 	  CBlockIndex * pprev_algo = pindexPrev;
+	  bool onFork2now = CBlockIndex::IsSuperMajority(5,pindexPrev,750,1000);
 	  if (GetAlgo(pprev_algo->nVersion)!=miningAlgo) {
-	    pprev_algo = get_pprev_algo(pindexPrev,miningAlgo);
+	    pprev_algo = get_pprev_algo(pindexPrev,miningAlgo,onFork2now);
 	  }
 	  if (!pprev_algo) {
 	    //LogPrintf("miner set update ssf\n");
@@ -358,15 +359,17 @@ CBlockTemplate* CreateNewBlock(const CScript& scriptPubKeyIn)
 	  else {
 	    //LogPrintf("check for update flag\n");
 	    char update = 1;
-	    for (int i=0; i<nSSF; i++) {
+	    int nSSFb = nSSF;
+	    if (onFork2now) nSSFb = nSSF;
+	    for (int i=0; i<nSSFb; i++) {
 	      if (update_ssf(pprev_algo->nVersion)) {
 		//LogPrintf("update ssf set on i=%d ago\n",i);
-		if (i!=nSSF-1) {
+		if (i!=nSSFb-1) {
 		  update = 0;
 		}
 		break;
 	      }
-	      pprev_algo = get_pprev_algo(pprev_algo,-1);
+	      pprev_algo = get_pprev_algo(pprev_algo,-1,onFork2now);
 	      if (!pprev_algo) break;
 	    }
 	    if (update) pblock->SetUpdateSSF();
