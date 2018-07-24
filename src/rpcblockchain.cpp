@@ -135,7 +135,13 @@ double GetPeakHashrate (const CBlockIndex* blockindex, int algo) {
 	  return std::numeric_limits<double>::max();
 	}
 	//LogPrintf("hashes = %f, time = %f\n",(double)hashes_bn.getulong(),(double)time_f);
-	double hashes = (((hashes_bn/time_f)/1000000)/1000).getulong();
+	double hashes = 0.;
+	if (TestNet()) {
+	  hashes = ((hashes_bn/time_f)/1000).getulong();
+	}
+	else {
+	  hashes = (((hashes_bn/time_f)/1000000)/1000).getulong();
+	}
 	//LogPrintf("hashes per sec = %f\n",hashes);
 	if (hashes>hashes_peak) hashes_peak = hashes;
       }
@@ -202,7 +208,12 @@ double GetCurrentHashrate (const CBlockIndex* blockindex, int algo) { //as used 
 	return std::numeric_limits<double>::max();
       }
       //LogPrintf("return %lu / %f\n",(double)hashes_bn.getulong(),(double)time_f);
-      return (((hashes_bn/time_f)/1000000)/1000).getulong();
+      if (TestNet()) {
+	return ((hashes_bn/time_f)/1000).getulong();
+      }
+      else {
+	return (((hashes_bn/time_f)/1000000)/1000).getulong();
+      }
     }
     blockindex = get_pprev_algo(blockindex,-1,onFork2now);
   } while (blockindex);

@@ -1279,16 +1279,16 @@ int64_t GetBlockValue(CBlockIndex* pindex, int64_t nFees, bool noScale)
     //LogPrintf("for height %d use scaling factor %f\n",nHeight,scalingFactor);
     if (RegTest()) {
       baseSubsidy = 1500000000;
-      if (mm) {
+      /*if (mm) {
 	baseSubsidy /= 2;
       }
-      else {
+      else if (onFork2now) {
 	baseSubsidy *= 3;
 	baseSubsidy /= 2;
-      }
+	}*/
       if (!scalingFactor) return nFees + baseSubsidy;
       if (mm) {
-	return nFees + baseSubsidy - ((CBigNum(baseSubsidy)*CBigNum(100000000))/scalingFactor).getuint() * 3 / 4;
+	return nFees + baseSubsidy - ((CBigNum(baseSubsidy)*CBigNum(100000000))/scalingFactor).getuint();
       }
       else {
 	return nFees + baseSubsidy - ((CBigNum(baseSubsidy)*CBigNum(100000000))/scalingFactor).getuint() / 2;
@@ -1401,17 +1401,17 @@ int64_t GetBlockValue(CBlockIndex* pindex, int64_t nFees, bool noScale)
     else if (emitted < 2757984964566000) { // Q 18 H 17 height 13790000
       baseSubsidy = 15258;
     }
-    if (mm) { // 3/4 of the subsidy to native miners, 1/4 to merged
+    /*if (mm) { // 3/4 of the subsidy to native miners, 1/4 to merged
       baseSubsidy /= 2;
     }
-    else {
+    else if (onFork2now) {
       baseSubsidy *= 3;
       baseSubsidy /= 2;
-    }
+      }*/
     // total of 2757989473108000 coins emitted
     if (!scalingFactor) return nFees + baseSubsidy;
-    if (mm) { // merged have a tougher CEM response
-      return nFees + baseSubsidy - ((CBigNum(baseSubsidy)*CBigNum(100000000))/scalingFactor).getuint() * 3 / 4;
+    if (mm) { // merged have a full CEM response
+      return nFees + baseSubsidy - ((CBigNum(baseSubsidy)*CBigNum(100000000))/scalingFactor).getuint();
     }
     else {
       return nFees + baseSubsidy - ((CBigNum(baseSubsidy)*CBigNum(100000000))/scalingFactor).getuint() / 2;
@@ -2195,8 +2195,8 @@ bool ConnectBlock(CBlock& block, CValidationState& state, CBlockIndex* pindex, C
     bool onFork2now = onFork2(pindex);
     
     // Force min version after fork
-    if (onForkNow && block.nVersion<CBlock::CURRENT_VERSION) {
-      LogPrintf("nVersion<=2 and after fork\n");
+    if (onForkNow && block.nVersion<4) {
+      LogPrintf("nVersion<4 and after fork\n");
       return false;
     }
 
@@ -5167,7 +5167,12 @@ unsigned long get_ssf_work (const CBlockIndex * pindex) {
   CBigNum hashes_bn = pprev_algo->GetBlockWork();
   for (int i=0; i<nSSF; i++) {
     if (update_ssf(pprev_algo->nVersion)) {
-      return ((hashes_bn/1000000)/1000).getulong();
+      if (TestNet()) {
+	return (hashes_bn/1000).getulong();
+      }
+      else {
+	return ((hashes_bn/1000000)/1000).getulong();
+      }
     }
     pprev_algo = get_pprev_algo(pprev_algo,-1,onFork2now);
     if (!pprev_algo) return 0;
