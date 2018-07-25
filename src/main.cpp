@@ -1234,12 +1234,12 @@ int64_t GetBlockValue(CBlockIndex* pindex, int64_t nFees, bool noScale)
     CBlockIndex * pprev_algo = get_pprev_algo(pindex,-1,onFork2now);
     int efactor = NUM_ALGOS;
     bool mm = IsAuxpow(pindex->nVersion) && onFork2now;
-    if (mm) {
+    /*if (mm) {
       efactor = NUM_ALGOS * 4;
     }
     else {
       efactor = NUM_ALGOS * 4/3;
-    }
+      }*/
 
     if (pprev_algo) { //make emitted 8 times bigger so that the target points are divided in 8 for each algo
       emitted = efactor * pprev_algo->nMoneySupply;
