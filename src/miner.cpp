@@ -118,9 +118,9 @@ CBlockTemplate* CreateNewBlock(const CScript& scriptPubKeyIn)
     CBlockIndex* pindexPrev = chainActive.Tip();
     if (!confAlgoIsSet) {
       miningAlgo = GetArg("-miningalgo", miningAlgo);
+      auxpow = GetArg("-auxpow",auxpow);
       confAlgoIsSet = true;
     }
-    auxpow = GetArg("-auxpow",auxpow);
     // To simulate v3 blocks occuring after nForkHeight
     if (TestNet() && pindexPrev->nHeight < 300 && miningAlgo==0) pblock->nVersion = 3;
     //LogPrintf("pindexPrev nHeight = %d while nForkHeight = %d\n",pindexPrev->nHeight,nForkHeight);

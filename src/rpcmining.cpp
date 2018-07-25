@@ -158,13 +158,15 @@ Value getgenerate(const Array& params, bool fHelp)
 Value setminingalgo(const Array& params, bool fHelp)
 {
   if (fHelp || params.size() != 1)
-    throw runtime_error("setminingalgo algo"
+    throw runtime_error("setminingalgo algo (auxpow)"
 			"\nSet the algorithm for mining purposes\n"
 			"\nArguments:\n"
-			"1. algo         (numeric, required).\n"
+			"1. algo         (numeric, required)\n"
+			"2. auxpow (boolean, optional).\n"
 			);
 
   miningAlgo = params[0].get_int();
+  if (params.size() > 1) auxpow = params[1].get_bool();
 
   return Value::null;
 }
@@ -175,14 +177,18 @@ Value getminingalgo(const Array& params, bool fHelp)
     throw runtime_error("getminingalgo"
 			"\nGet the mining algorithm\n"
 			"\nResult\n"
-			"x (1-5) The number representing the mining algorithm\n"			
-			);
+			"x (1-5) The number representing the mining algorithm\n");
 
   if (!confAlgoIsSet) {
     miningAlgo = GetArg("-miningalgo", miningAlgo);
+    auxpow = GetArg("-auxpow",auxpow);
     confAlgoIsSet = true;
   }
-  return (int)miningAlgo;
+
+  Object obj;
+  obj.push_back(Pair("algo",miningAlgo));
+  obj.push_back(Pair("auxpow",auxpow));
+  return obj;
 }
       
 

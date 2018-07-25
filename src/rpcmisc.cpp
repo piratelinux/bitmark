@@ -75,6 +75,7 @@ Value getinfo(const Array& params, bool fHelp)
 
     if (!confAlgoIsSet) {
       miningAlgo = GetArg("-miningalgo", miningAlgo);
+      auxpow = GetArg("-auxpow",auxpow);
       confAlgoIsSet = true;
     }
 
