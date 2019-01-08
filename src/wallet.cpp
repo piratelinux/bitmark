@@ -1322,8 +1322,9 @@ bool CWallet::SelectCoins(int64_t nTargetValue, set<pair<const CWalletTx*,unsign
 
 
 bool CWallet::CreateTransaction(const vector<pair<CScript, int64_t> >& vecSend,
-                                CWalletTx& wtxNew, CReserveKey& reservekey, int64_t& nFeeRet, std::string& strFailReason, const CCoinControl* coinControl, const char * data, const char * comment, const char * txid, int nOutput)
+                                CWalletTx& wtxNew, CReserveKey& reservekey, int64_t& nFeeRet, std::string& strFailReason, const CCoinControl* coinControl, const char * data, const char * comment, const char * txid, int nOutputStart)
 {
+  LogPrintf("starting nOutput = %d\n",nOutputStart);
     int64_t nValue = 0;
     BOOST_FOREACH (const PAIRTYPE(CScript, int64_t)& s, vecSend)
     {
@@ -1351,6 +1352,8 @@ bool CWallet::CreateTransaction(const vector<pair<CScript, int64_t> >& vecSend,
                 wtxNew.vin.clear();
                 wtxNew.vout.clear();
                 wtxNew.fFromMe = true;
+
+		int nOutput = nOutputStart;
 
                 int64_t nTotalValue = nValue + nFeeRet;
                 double dPriority = 0;
@@ -1438,6 +1441,7 @@ bool CWallet::CreateTransaction(const vector<pair<CScript, int64_t> >& vecSend,
                     {
                         // Insert change txn at random position:
                         vector<CTxOut>::iterator position = wtxNew.vout.begin()+GetRandInt(wtxNew.vout.size()+1);
+			LogPrintf("insert change txn at position %d\n",position-wtxNew.vout.begin());
                         wtxNew.vout.insert(position, newTxOut);
                     }
                 }
@@ -1457,19 +1461,29 @@ bool CWallet::CreateTransaction(const vector<pair<CScript, int64_t> >& vecSend,
 		  CTxOut newTxOut(0,scriptData);
 		  vector<CTxOut>::iterator position = wtxNew.vout.begin()+GetRandInt(wtxNew.vout.size()+1);
 		  dataPosition = position - wtxNew.vout.begin();
-		  wtxNew.vout.insert(position, newTxOut);
 		  LogPrintf("dataPosition = %d\n",dataPosition);
+		  wtxNew.vout.insert(position, newTxOut);
 		}
 
 		if (comment) {
+		  vector<CTxOut>::iterator position = wtxNew.vout.begin()+GetRandInt(wtxNew.vout.size()+1);
+		  int commentPosition = position-wtxNew.vout.begin();
+		  LogPrintf("comment position = %d\n",commentPosition);
+		  if (commentPosition <= dataPosition) {
+		    dataPosition++;
+		    LogPrintf("change data position to %d\n",dataPosition);
+		  }
 		  CScript scriptComment;
 		  int commentLen = strlen(comment);
 		  char * commentHex = (char *)malloc(commentLen*2+1);
 		  for (int i=0; i<commentLen; i++) {
 		    sprintf(commentHex+2*i,"%02x",comment[i]&0xff);
 		  }
-		  if (data && !txid && nOutput == -1)
+		  if (data && !txid && nOutput == -1) {
+		    LogPrintf("set nOutput to dataPosition\n");
 		    nOutput = dataPosition;
+		  }
+		  LogPrintf("nOutput = %d\n",nOutput);
 		  if (!txid and nOutput < 0) {
 		    LogPrintf("scriptComment variant 1\n");
 		    scriptComment = CScript() << ParseHex(commentHex) << OP_COMMENT;
@@ -1488,7 +1502,6 @@ bool CWallet::CreateTransaction(const vector<pair<CScript, int64_t> >& vecSend,
 		  }
 		  LogPrintf("scriptComment = %s nOutput = %d\n",HexStr(scriptComment),nOutput);
 		  CTxOut newTxOut(0,scriptComment);
-		  vector<CTxOut>::iterator position = wtxNew.vout.begin()+GetRandInt(wtxNew.vout.size()+1);
 		  wtxNew.vout.insert(position, newTxOut);
 		}
 
@@ -1619,6 +1632,7 @@ string CWallet::SendMoney(CScript scriptPubKey, int64_t nValue, CWalletTx& wtxNe
 
 string CWallet::SendMoneyNoDestination(CWalletTx& wtxNew, const char * data, const char * comment, const char * txid, int nOutput)
 {
+  LogPrintf("sendMoneyNoDestination nOutput = %d\n",nOutput);
   CReserveKey reservekey(this);
   int64_t nFeeRequired;
   vector< pair<CScript, int64_t> > vecSend; //empty vector so that money will go to a change address only
@@ -1664,6 +1678,7 @@ string CWallet::SendMoneyToDestination(const CTxDestination& address, int64_t nV
 
 string CWallet::SendMoneyToNoDestination(CWalletTx& wtxNew, const char * data, const char * comment, const char * txid, int nOutput)
 {
+  LogPrintf("sendmoneytonodestination nOutput = %d\n",nOutput);
   if (nTransactionFee > GetBalance())
     return _("Insufficient funds");
 

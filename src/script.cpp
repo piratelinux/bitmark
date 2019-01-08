@@ -1421,7 +1421,7 @@ bool CheckSig(vector<unsigned char> vchSig, const vector<unsigned char> &vchPubK
 //
 bool Solver(const CScript& scriptPubKey, txnouttype& typeRet, vector<vector<unsigned char> >& vSolutionsRet)
 {
-  LogPrintf("Run solver with scriptPubKey %s\n",HexStr(scriptPubKey));
+  //LogPrintf("Run solver with scriptPubKey %s\n",HexStr(scriptPubKey));
     // Templates
     static multimap<txnouttype, CScript> mTemplates;
     if (mTemplates.empty())
@@ -1456,7 +1456,7 @@ bool Solver(const CScript& scriptPubKey, txnouttype& typeRet, vector<vector<unsi
     const CScript& script1 = scriptPubKey;
     BOOST_FOREACH(const PAIRTYPE(txnouttype, CScript)& tplate, mTemplates)
     {
-      LogPrintf("check if matches %s\n",GetTxnOutputType(tplate.first));
+      //LogPrintf("check if matches %s\n",GetTxnOutputType(tplate.first));
       const CScript& script2 = tplate.second;
       vSolutionsRet.clear();
 
@@ -1473,7 +1473,7 @@ bool Solver(const CScript& scriptPubKey, txnouttype& typeRet, vector<vector<unsi
         {
 	  if (pc1 == script1.end() && pc2 == script2.end())
             {
-	      LogPrintf("found a match\n");
+	      //LogPrintf("found a match\n");
 	      // Found a match
 	      typeRet = tplate.first;
 	      if (typeRet == TX_MULTISIG)
@@ -1493,10 +1493,10 @@ bool Solver(const CScript& scriptPubKey, txnouttype& typeRet, vector<vector<unsi
 	      }
 	      return true;
             }
-	  LogPrintf("script1 getop\n");
+	  //LogPrintf("script1 getop\n");
 	  if (!script1.GetOp(pc1, opcode1, vch1))
 	    break;
-	  LogPrintf("script2 getop\n");
+	  //LogPrintf("script2 getop\n");
 	  if (!script2.GetOp(pc2, opcode2, vch2))
 	    break;
 
@@ -1545,7 +1545,7 @@ bool Solver(const CScript& scriptPubKey, txnouttype& typeRet, vector<vector<unsi
 		break;
             }
 	  else if (opcode2 == OP_COMMENT) {
-	    LogPrintf("opcode2 == OP_COMMENT\n");
+	    //LogPrintf("opcode2 == OP_COMMENT\n");
 	    do {
 	      if (opcode1 == OP_COMMENT) {
 		haveOpComment = true;
@@ -1553,11 +1553,11 @@ bool Solver(const CScript& scriptPubKey, txnouttype& typeRet, vector<vector<unsi
 	      else if (opcode1 == OP_0 || (opcode1 >= OP_1 && opcode1 <= OP_16)) {
 		char n = (char)CScript::DecodeOP_N(opcode1);
 		vSolutionsRet.push_back(valtype(1, n));
-		LogPrintf("pushed valtype 1,%d\n",n);
+		//LogPrintf("pushed valtype 1,%d\n",n);
 	      }
 	      else if (vch1.size()>0) {
 		vSolutionsRet.push_back(vch1); // push txid, output, comment into vSolutionsRet
-		LogPrintf("pushed vch1: %s\n",HexStr(vch1).c_str());
+		//LogPrintf("pushed vch1: %s\n",HexStr(vch1).c_str());
 	      }
 	    } while (script1.GetOp(pc1, opcode1, vch1));
 	  }

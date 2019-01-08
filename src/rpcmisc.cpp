@@ -715,6 +715,7 @@ Value mark(const Array& params, bool fHelp)
   }
   else {
     EnsureWalletIsUnlocked();
+    LogPrintf("sendmoneytonodestination with nOutput=%d\n",nOutput);
     string strError = pwalletMain->SendMoneyToNoDestination(wtx,data,comment,txid,nOutput);
   }
 

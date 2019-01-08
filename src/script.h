@@ -405,6 +405,14 @@ inline std::string ValueString(const std::vector<unsigned char>& vch)
         return HexStr(vch);
 }
 
+inline std::string HRValueString(const std::vector<unsigned char>& vch)
+{
+    if (vch.size() <= 4)
+        return strprintf("%d", CScriptNum(vch).getint());
+    else
+        return HRStr(vch);
+}
+
 inline std::string StackString(const std::vector<std::vector<unsigned char> >& vStack)
 {
     std::string str;
@@ -735,6 +743,48 @@ public:
         }
         return str;
     }
+
+  std::string ToValueString() const
+    {
+        std::string str;
+        opcodetype opcode;
+        std::vector<unsigned char> vch;
+        const_iterator pc = begin();
+        while (pc < end())
+        {
+            if (!GetOp(pc, opcode, vch))
+            {
+                str += "[error]";
+                return str;
+            }
+            if (0 <= opcode && opcode <= OP_PUSHDATA4)
+                str += ValueString(vch);
+	    if (!str.empty())
+	      str += " ";
+        }
+        return str;
+    }
+
+  std::string ToHRValueString() const
+  {
+    std::string str;
+    opcodetype opcode;
+    std::vector<unsigned char> vch;
+    const_iterator pc = begin();
+    while (pc < end())
+      {
+	if (!GetOp(pc, opcode, vch))
+	  {
+	    str += "[error]";
+	    return str;
+	  }
+	if (0 <= opcode && opcode <= OP_PUSHDATA4)
+	  str += HRValueString(vch);
+	if (!str.empty())
+	  str += " ";
+      }
+    return str;
+  }
 
     void print() const
     {

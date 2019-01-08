@@ -39,8 +39,17 @@ void ScriptPubKeyToJSON(const CScript& scriptPubKey, Object& out, bool fIncludeH
 
     if (!ExtractDestinations(scriptPubKey, type, addresses, nRequired))
     {
-        out.push_back(Pair("type", GetTxnOutputType(type)));
-        return;
+      const char * typeStr = GetTxnOutputType(type);
+      out.push_back(Pair("type", typeStr));
+      if (!strcmp(typeStr,"nulldata")) {
+	 out.push_back(Pair("data",scriptPubKey.ToValueString()));
+	 out.push_back(Pair("data HR",scriptPubKey.ToHRValueString()));
+      }
+      else if (!strcmp(typeStr,"comment")) {
+	 out.push_back(Pair("comment",scriptPubKey.ToValueString()));
+	 out.push_back(Pair("comment HR",scriptPubKey.ToHRValueString()));
+      }
+      return;
     }
 
     out.push_back(Pair("reqSigs", nRequired));
