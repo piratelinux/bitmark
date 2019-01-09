@@ -567,6 +567,7 @@ bool EvalScript(vector<vector<unsigned char> >& stack, const CScript& script, co
 	      break;
 	    case OP_NOP4: // OP_COMMENT - for commenting on marking transactions
 	      {
+		return false; // I don't think we need the code below because it is only for checking spendable INPUTS
 		
 		if (!(flags & SCRIPT_VERIFY_COMMENT))
 		  break; // not enabled; treat as a NOP
